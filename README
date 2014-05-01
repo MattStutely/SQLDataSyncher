@@ -1,0 +1,5 @@
+This is a project that will allow synchronisation of SQL databases over HTTP(S) without the need for advanced versions of SQL Server (i.e. SQL replication), complex configuration, or lots of ports being opened up on the firewall. It is basically poor mans replication. But I am a poor man.
+
+The trigger script should be run against the db you want to sync - modifying afterwards at a table level to control what is synched.
+The sender db is basically a queueing point for sending sync messages
+The receiver db holds received messages pending processing
