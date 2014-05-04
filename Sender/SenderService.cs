@@ -22,6 +22,7 @@ namespace SQLDataSyncSender
     }
     public class SenderService
     {
+        private static string _sendToken = ConfigurationSettings.AppSettings["sendtoken"];
         private enum ProcessedState
         {
             Pending = 0,
@@ -45,8 +46,7 @@ namespace SQLDataSyncSender
                             Int64 syncProcessingId = dr.GetInt64(0);
                             //send it   
                             bool ok = false;
-                            string url = string.Format("{0}/processmessage/{1}/{2}", dr["EndpointUrl"].ToString(),
-                                dr["SystemName"].ToString(), dr["EndpointDescription"].ToString());
+                            string url = string.Format("{0}/processmessage/{1}/{2}/{3}", dr["EndpointUrl"],_sendToken, dr["SystemName"], dr["EndpointDescription"]);
                             byte[] dataToSend = Encoding.UTF8.GetBytes(dr["SyncPackage"].ToString());
                             ServerResponse response = new ServerResponse();
                             //quick 3 attempts with 3s pause between each in case of connectivity issue
@@ -92,7 +92,6 @@ namespace SQLDataSyncSender
             try
             {
                 var webRequest = (HttpWebRequest) WebRequest.Create(url);
-                //webRequest.Headers.Add("Authorization", "Basic dGFibGVjbGVyazpwYXNzd29yZDEyMw==");
                 webRequest.Method = "POST";
                 webRequest.ContentType = "text/xml; encoding='utf-8'";
                 webRequest.ContentLength = dataToSend.Length;

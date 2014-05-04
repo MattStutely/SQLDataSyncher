@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Net.Http;
 using System.Web.Http;
 using Services;
@@ -7,24 +8,30 @@ namespace ServiceAPI
 {
     public class ReceiverController : ApiController
     {
+        private static string _acceptToken = ConfigurationSettings.AppSettings["accepttoken"];
 
-        [HttpPost]
-        //[GetResultsAuthenticationFilter]
-        [Route("processmessage/{system}/{endpoint}")]
-        public int ProcessMessage(HttpRequestMessage message, string system, string endpoint)
+        [HttpGet]
+        [Route("status")]
+        public void GetStatus()
         {
-            try
-            {
-                var receiverService = new ReceiverService();
-                var messageContent = message.Content.ReadAsStringAsync().Result;
-                var statusCode = receiverService.ProcessMessage(system, endpoint, messageContent);
-                return (int)statusCode;
-            }
-            catch (Exception ex)
-            {
-                return 500;
-            }
+            
         }
 
+
+    [HttpPost]
+        [Route("processmessage/{token}/{system}/{endpoint}")]
+        public int ProcessMessage(HttpRequestMessage message, string token, string system, string endpoint)
+        {
+            //validate token
+            if (token != _acceptToken)
+            {
+                throw new UnauthorizedAccessException();
+            }
+            var receiverService = new ReceiverService();
+            var messageContent = message.Content.ReadAsStringAsync().Result;
+            var statusCode = receiverService.ProcessMessage(system, endpoint, messageContent);
+            return (int) statusCode;
+        }
     }
+
 }
