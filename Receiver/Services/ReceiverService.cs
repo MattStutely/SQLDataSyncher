@@ -9,15 +9,19 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
+using log4net;
 
 namespace Services
 {
     public class ReceiverService 
     {
+        private readonly ILog _log = LogManager.GetLogger(typeof(ReceiverService));
+
         public HttpStatusCode ProcessMessage(string system, string endpoint,string messageToProcess)
         {
             try
             {
+                _log.Debug("Processing messsage");
                 //put the message into the db for processing
                 int endpointId;
                 List<SqlParameter> parms;
@@ -35,12 +39,14 @@ namespace Services
                     }
                     else
                     {
-                        //no system or endpoint set up
+                        //no system or endpoint set up#
+                        _log.Error("Endpoint not configured for processing");
                         return HttpStatusCode.NotFound;
                     }
                 }
                 //now write message to database
 
+                _log.Debug("Writing message to db");
                 //parse the message XML, then if wrong an exception is thrown
                 XmlDocument package = new XmlDocument();
                 package.LoadXml(messageToProcess);
@@ -65,6 +71,7 @@ namespace Services
             catch (Exception ex)
             {
                 //log it
+                _log.Error(ex.Message,ex);
                 return HttpStatusCode.InternalServerError;
             }
             

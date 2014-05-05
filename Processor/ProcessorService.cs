@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using System.Runtime.Remoting.Services;
 using System.Threading;
 using log4net;
 
@@ -26,10 +27,13 @@ namespace SQLDataSyncProcessor
             try
             {
                 int batchSize = Convert.ToInt32(ConfigurationSettings.AppSettings["batchsize"]);
+                _log.Debug("Starting processing - batch size: " + batchSize);
                 //read n items off queue
                 for (var i = 0; i < batchSize; i++)
                 {
-                    using (var dr = DataAccess.GetSqlDataReaderFromReceiverDb("usp_GetNextDataItem", CommandType.StoredProcedure))
+                    using (
+                        var dr = DataAccess.GetSqlDataReaderFromReceiverDb("usp_GetNextDataItem",
+                            CommandType.StoredProcedure))
                     {
                         if (dr.Read())
                         {
@@ -37,15 +41,35 @@ namespace SQLDataSyncProcessor
                             string sql = dr["SqlStatement"].ToString();
                             string tableName = dr["TableName"].ToString();
                             string conStr = dr["DbConStr"].ToString();
+                            _log.Debug("Processing syncitem #" + syncProcessingId + " to table " + tableName);
                             //check if table name needs identity insert or not
                             if (!_identityInsertCache.ContainsKey(tableName))
                             {
                                 _identityInsertCache.Add(tableName, CheckIfTableNeedsIdentityInsert(conStr, tableName));
                             }
                             bool identityInsert = _identityInsertCache[tableName];
+                            bool isUpdate = !sql.StartsWith("DELETE");
+                            if (isUpdate)
+                            {
+                                _log.Debug("Message is INSERT/UPDATE");
+                                if (identityInsert)
+                                {
+                                    _log.Debug("Table requires identity insert");
+                                }
+                                else
+                                {
+                                    _log.Debug("Table DOES NOT requires identity insert");
+                                }
+                            }
+                            else
+                            {
+                                _log.Debug("Message is DELETE");
+                            }
+
                             //send it   
                             bool ok = false;
                             //quick 3 attempts with 3s pause between each in case of connectivity issue
+                            _log.Debug("Executing SQL against target Db");
                             for (var attempts = 1; attempts <= 3; attempts++)
                             {
                                 if (DataAccess.ExecuteSqlAgainstApplicationDb(conStr, tableName, identityInsert, sql))
@@ -59,6 +83,7 @@ namespace SQLDataSyncProcessor
                             if (!ok)
                             {
                                 //it failed 3 times, we need to log and then park this system until we fix it
+                                _log.Debug("Failed to process after 3 attempts - " + DataAccess.LastErrorMessage);
                                 SetProcessedState(syncProcessingId, ProcessedState.Failure, DataAccess.LastErrorMessage);
                             }
 
@@ -71,13 +96,15 @@ namespace SQLDataSyncProcessor
                     }
 
                 }
-
-                //finished
             }
             catch (Exception ex)
             {
-                _log.Error(ex.Message,ex);
-                throw;
+                _log.Error(ex.Message, ex);
+            }
+            finally
+            {
+                //finished
+                _log.Debug("Processing completed");    
             }
         }
 

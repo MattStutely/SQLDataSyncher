@@ -43,6 +43,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="log4net">
+      <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.Practices.ServiceLocation">
       <HintPath>..\packages\CommonServiceLocator.1.0\lib\NET35\Microsoft.Practices.ServiceLocation.dll</HintPath>
@@ -145,10 +148,6 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Logging\Logger.csproj">
-      <Project>{5b9108d8-a8e6-41bb-a878-6e1a3ea5b124}</Project>
-      <Name>Logger</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Services\Services.csproj">
       <Project>{9f019b14-66bb-4808-8b5c-c8808cc7e2e5}</Project>
       <Name>Services</Name>

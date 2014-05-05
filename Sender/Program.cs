@@ -13,7 +13,7 @@ namespace SQLDataSyncSender
     {
         private static void Main(string[] args)
         {
-
+            log4net.Config.XmlConfigurator.Configure();
             var sender = new SenderService();
             sender.ProcessQueue();
         }

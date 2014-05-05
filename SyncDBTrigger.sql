@@ -147,10 +147,10 @@ BEGIN
 		SELECT @Type = ''I''
 	
 	IF @Type = ''D''
-		SET @Data = (SELECT * FROM deleted WHERE '
+		SET @Data = (SELECT * FROM deleted AS DataChange WHERE '
 	SET @SQL = @SQL + @WHERESQL + ' FOR XML AUTO,ELEMENTS,BINARY BASE64)
 	ELSE
-		SET @Data = (SELECT * FROM inserted WHERE '
+		SET @Data = (SELECT * FROM inserted AS DataChange WHERE '
 	SET @SQL = @SQL + @WHERESQL + ' FOR XML AUTO,ELEMENTS,BINARY BASE64)
 	
 	exec usp_CreateSyncItem @Table_Name, NULL, @Data, @Type, @UpdatedWhen --at replace NULL with a comma delimited string of columns you do not wish to sync
@@ -166,10 +166,10 @@ GO
 
 --**SYNC STORED PROCEDURE**
 --this proc needed in each db that you want to sync, trigger will call it to write to sync db
-CREATE PROCEDURE [dbo].[usp_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
+ALTER PROCEDURE [dbo].[usp_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
 SET NOCOUNT ON
 DECLARE @System VARCHAR(50)
-SET @System = 'Calendar' -- change to specify the system you want this to be called across the sync process
+SET @System = 'LordsDigest' -- change to specify the system you want this to be called across the sync process
 
 --build entry to data queue
 DECLARE @InsertSQL NVARCHAR(MAX)
@@ -186,6 +186,7 @@ DECLARE @MaxRowID INT
 DECLARE @ColName VARCHAR(255)
 DECLARE @ColDT VARCHAR(50)
 DECLARE @Value NVARCHAR(MAX)
+DECLARE @XValue XML
 
 DECLARE @Quote CHAR(1)
 SELECT @Quote = ''''
@@ -245,10 +246,14 @@ BEGIN
 				
 		SET @InsertCols = @InsertCols + @ColName
 
-		IF @UpdateType IN ('U','I')
-			SELECT @VALUE = x.item.value('*[local-name() = sql:variable("@ColName")][1]','nvarchar(max)') FROM @ChangeXML.nodes('//inserted') AS x(item)
+		IF @ColDT <> 'xml(MAX)'
+			SELECT @VALUE = x.item.value('*[local-name() = sql:variable("@ColName")][1]','nvarchar(max)') FROM @ChangeXML.nodes('//DataChange') AS x(item)
 		ELSE
-			SELECT @VALUE = x.item.value('*[local-name() = sql:variable("@ColName")][1]','nvarchar(max)') FROM @ChangeXML.nodes('//deleted') AS x(item)
+			BEGIN
+				--xml data types need extracting and converting, or you lose any xml inside them
+				SELECT @XVALUE = x.item.query('*[local-name() = sql:variable("@ColName")]/*') FROM @ChangeXML.nodes('//DataChange') AS x(item)
+				SET @VALUE=CONVERT(NVARCHAR(MAX),@XVALUE)
+			END
 			
 		IF @VALUE IS NULL
 		BEGIN
@@ -285,11 +290,7 @@ END
              
 IF @UpdateType IN ('U','I')
 BEGIN
-	IF @UpdateSQL<>''
-		SET @UpdateSQL = 'UPDATE ' + @TableName + ' SET ' + @UpdateSQL + ' WHERE ' + @WhereSQL
-	ELSE
-		SET @UpdateSQL = 'SELECT 1'
-		
+	SET @UpdateSQL = 'UPDATE ' + @TableName + ' SET ' + @UpdateSQL + ' WHERE ' + @WhereSQL
 	SET @InsertSQL = 'INSERT INTO ' + @TableName + '(' + @InsertCols + ') VALUES (' + @InsertValues + ')'
 
 	SET @ExecSQL = 'IF EXISTS(SELECT 1 FROM ' + @TableName +  ' WHERE ' + @WhereSQL + ') '
@@ -304,3 +305,4 @@ ELSE
 EXECUTE [DEVCI_SystemSyncSender].dbo.[usp_AddSyncItem] --change to specify db location of our sync db
    @System, @TableName, @ExecSQL, @UpdatedWhen
 GO
+

@@ -1,7 +1,6 @@
 ﻿using System.Web.Http;
 using System.Web.Mvc;
 using DashboardServices.ServiceAPI;
-using Logger;
 
 namespace SQLDataSyncReceiver.ServiceAPI
 {
@@ -12,6 +11,7 @@ namespace SQLDataSyncReceiver.ServiceAPI
     {
         protected void Application_Start()
         {
+            log4net.Config.XmlConfigurator.Configure();
             AreaRegistration.RegisterAllAreas();
             GlobalConfiguration.Configure(WebApiConfig.Register);
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
