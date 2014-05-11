@@ -131,3 +131,12 @@ REFERENCES [SyncSystemEndpoints] ([SyncSystemEndpointId])
 GO
 ALTER TABLE [SyncProcessing] CHECK CONSTRAINT [FK_SyncProcessing_SyncSystemEndpoints]
 GO
+
+CREATE PROCEDURE usp_Stats AS
+
+SELECT SystemName, EndpointName, IsActive, QueueSize, LastMessageReceived, LastMessageProcessed, LastError
+FROM SyncSystemEndpoints
+CROSS APPLY (SELECT COUNT(SyncProcessingId) AS QueueSize, MAX(ReceivedWhen) AS LastMessageReceived FROM SyncProcessing WHERE SyncProcessing.SyncSystemEndpointId = SyncSystemEndpointId AND ProcessedState = 0) unprocessed
+CROSS APPLY (SELECT MAX(ProcessedWhen) AS LastMessageProcessed FROM SyncProcessing WHERE SyncProcessing.SyncSystemEndpointId = SyncSystemEndpointId AND ProcessedState = 2) processed
+CROSS APPLY (SELECT MAX(ProcessedWhen) AS LastError FROM SyncProcessing WHERE SyncProcessing.SyncSystemEndpointId = SyncSystemEndpointId AND ProcessedState = 3) error
+GO

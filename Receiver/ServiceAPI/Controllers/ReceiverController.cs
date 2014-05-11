@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Net.Http;
 using System.Web.Http;
@@ -11,12 +12,21 @@ namespace ServiceAPI
     {
         private readonly ILog _log = LogManager.GetLogger(typeof(ReceiverController));
         private static string _acceptToken = ConfigurationSettings.AppSettings["accepttoken"];
+        private static string _statsToken = ConfigurationSettings.AppSettings["statstoken"];
 
         [HttpGet]
-        [Route("status")]
-        public void GetStatus()
+        [Route("status/{token}")]
+        public List<StatsData> GetStatus(string token)
         {
-            
+            _log.Debug("Request for stats");
+            //validate token
+            if (token != _statsToken)
+            {
+                _log.Error("Token sent (" + token + ") is not valid");
+                throw new UnauthorizedAccessException();
+            }
+            var statsService = new StatsService();
+            return statsService.GetStats();
         }
 
 

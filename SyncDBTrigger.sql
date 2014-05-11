@@ -290,7 +290,11 @@ END
              
 IF @UpdateType IN ('U','I')
 BEGIN
-	SET @UpdateSQL = 'UPDATE ' + @TableName + ' SET ' + @UpdateSQL + ' WHERE ' + @WhereSQL
+	IF @UpdateSQL<>''
+		SET @UpdateSQL = 'UPDATE ' + @TableName + ' SET ' + @UpdateSQL + ' WHERE ' + @WhereSQL
+	ELSE
+		SET @UpdateSQL = 'SELECT 1'
+
 	SET @InsertSQL = 'INSERT INTO ' + @TableName + '(' + @InsertCols + ') VALUES (' + @InsertValues + ')'
 
 	SET @ExecSQL = 'IF EXISTS(SELECT 1 FROM ' + @TableName +  ' WHERE ' + @WhereSQL + ') '
