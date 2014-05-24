@@ -293,7 +293,7 @@ BEGIN
 	IF @UpdateSQL<>''
 		SET @UpdateSQL = 'UPDATE ' + @TableName + ' SET ' + @UpdateSQL + ' WHERE ' + @WhereSQL
 	ELSE
-		SET @UpdateSQL = 'SELECT 1'
+		SET @UpdateSQL = 'SELECT 1 FROM ' + @TableName
 
 	SET @InsertSQL = 'INSERT INTO ' + @TableName + '(' + @InsertCols + ') VALUES (' + @InsertValues + ')'
 
