@@ -166,7 +166,7 @@ GO
 
 --**SYNC STORED PROCEDURE**
 --this proc needed in each db that you want to sync, trigger will call it to write to sync db
-ALTER PROCEDURE [dbo].[usp_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
+CREATE PROCEDURE [dbo].[usp_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
 SET NOCOUNT ON
 DECLARE @System VARCHAR(50)
 SET @System = 'LordsDigest' -- change to specify the system you want this to be called across the sync process
