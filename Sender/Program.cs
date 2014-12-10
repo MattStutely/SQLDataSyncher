@@ -14,6 +14,7 @@ namespace SQLDataSyncSender
         private static void Main(string[] args)
         {
             log4net.Config.XmlConfigurator.Configure();
+            ServiceAccountProxy.SetDefault();
             var sender = new SenderService();
             sender.ProcessQueue();
         }

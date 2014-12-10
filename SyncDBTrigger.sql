@@ -153,7 +153,7 @@ BEGIN
 		SET @Data = (SELECT * FROM inserted AS DataChange WHERE '
 	SET @SQL = @SQL + @WHERESQL + ' FOR XML AUTO,ELEMENTS,BINARY BASE64)
 	
-	exec usp_CreateSyncItem @Table_Name, NULL, @Data, @Type, @UpdatedWhen --at replace NULL with a comma delimited string of columns you do not wish to sync
+	exec usp_SyncTool_CreateSyncItem @Table_Name, NULL, @Data, @Type, @UpdatedWhen --at replace NULL with a comma delimited string of columns you do not wish to sync
 
 	SET @RowId = @RowId + 1
 END
@@ -166,7 +166,7 @@ GO
 
 --**SYNC STORED PROCEDURE**
 --this proc needed in each db that you want to sync, trigger will call it to write to sync db
-CREATE PROCEDURE [dbo].[usp_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
+CREATE PROCEDURE [dbo].[usp_SyncTool_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
 SET NOCOUNT ON
 DECLARE @System VARCHAR(50)
 SET @System = 'LordsDigest' -- change to specify the system you want this to be called across the sync process
