@@ -1,3 +1,11 @@
+--*****IMPORTANT*****-
+--MUST REPLACE THE TEXT IN THIS FILE AS FOLLOWS
+
+--REPLACEME_SENDERDATABASE with the name of the fully qualified name of the sender database
+--REPLACEME_SYSTEMNAME with the name to be used for the system being synchronised (e.g. Calendar)
+
+--***IMPORTANT! DON'T MISS THE ABOVE STEPS!!!******
+
 --**SYNC TRIGGER**
 --this will create triggers on each table to sync, you can control this by changing the WHERE clause that populates the table variable at the start to omit other tables other than just sysdiagrams
 DECLARE @SQL varchar(max)
@@ -169,7 +177,7 @@ GO
 CREATE PROCEDURE [dbo].[usp_SyncTool_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
 SET NOCOUNT ON
 DECLARE @System VARCHAR(50)
-SET @System = 'LordsDigest' -- change to specify the system you want this to be called across the sync process
+SET @System = 'REPLACEME_SYSTEMNAME' -- change to specify the system you want this to be called across the sync process
 
 --build entry to data queue
 DECLARE @InsertSQL NVARCHAR(MAX)
@@ -306,7 +314,7 @@ ELSE
 	--delete
 	SET @ExecSQL = 'DELETE FROM ' + @TableName + ' WHERE ' + @WhereSQL	 
 
-EXECUTE [DEVCI_SystemSyncSender].dbo.[usp_AddSyncItem] --change to specify db location of our sync db
+EXECUTE [REPLACEME_SENDERDATABASE].dbo.[usp_AddSyncItem] --change to specify db location of our sync db
    @System, @TableName, @ExecSQL, @UpdatedWhen
 GO
 
