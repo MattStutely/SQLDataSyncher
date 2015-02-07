@@ -17,6 +17,30 @@ namespace Services
     {
         private readonly ILog _log = LogManager.GetLogger(typeof(ReceiverService));
 
+        public HttpStatusCode EndpointExistsCheck(string system, string endpoint)
+        {
+            List<SqlParameter> parms;
+            parms = new List<SqlParameter>
+                        {
+                            new SqlParameter {ParameterName = "@System", Value = system},
+                            new SqlParameter {ParameterName = "@Endpoint", Value = endpoint}
+                        };
+
+            using (var dr = DataAccess.GetSqlDataReader("usp_GetEndpoint", parms))
+            {
+                if (dr.Read())
+                {
+                    return HttpStatusCode.Found;
+                }
+                else
+                {
+                    //no system or endpoint set up#
+                    _log.Error(string.Format("Endpoint not configured for processing {0}/{1}",system,endpoint));
+                    return HttpStatusCode.NotFound;
+                }
+            }
+        }
+
         public HttpStatusCode ProcessMessage(string system, string endpoint,string messageToProcess)
         {
             try

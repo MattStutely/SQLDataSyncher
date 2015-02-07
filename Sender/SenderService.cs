@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Caching;
 using log4net;
+using Microsoft.SqlServer.Server;
 
 namespace SQLDataSyncSender
 {
@@ -24,7 +25,8 @@ namespace SQLDataSyncSender
 
     public class SenderService
     {
-        private static string _sendToken = ConfigurationSettings.AppSettings["sendtoken"];
+        private string _sendToken = ConfigurationSettings.AppSettings["sendtoken"];
+        private Dictionary<string,int> _endpoints = new Dictionary<string, int>(); 
         private readonly ILog _log = LogManager.GetLogger(typeof(SenderService));
         private enum ProcessedState
         {
@@ -32,6 +34,25 @@ namespace SQLDataSyncSender
             InProcess = 1,
             Success = 2,
             Failure = 3
+        }
+
+        private bool EndpointAvailable(string endpointUrl, string systemName, string endpointDescription)
+        {
+            string url = string.Format("{0}/endpointexists/{1}/{2}/{3}", endpointUrl, _sendToken, systemName, endpointDescription);
+            int response;
+            if (!_endpoints.ContainsKey(url))
+            {
+                _log.Debug(string.Format("Checking endpoint is available {0}",url));
+                response = GetWebResponse(url);    
+                _log.Debug(string.Format("Endpoint response code {0}",response));
+                _endpoints.Add(url,response);
+            }
+            else
+            {
+                response = _endpoints[url];
+            }
+            
+            return response==302;
         }
 
         public void ProcessQueue()
@@ -47,33 +68,38 @@ namespace SQLDataSyncSender
                     {
                         if (dr.Read())
                         {
-                            Int64 syncProcessingId = dr.GetInt64(0);
-                            //send it   
-                            bool ok = false;
-                            string url = string.Format("{0}/processmessage/{1}/{2}/{3}", dr["EndpointUrl"], _sendToken,
-                                dr["SystemName"], dr["EndpointDescription"]);
-                            byte[] dataToSend = Encoding.UTF8.GetBytes(dr["SyncPackage"].ToString());
-                            ServerResponse response = new ServerResponse();
-                            _log.Debug("Sending POST to " + url);
-                            //quick 3 attempts with 3s pause between each in case of connectivity issue
-                            for (var attempts = 1; attempts <= 3; attempts++)
+                            //check the endpoint is available to receive on
+                            if (EndpointAvailable(dr["EndpointUrl"].ToString(), dr["SystemName"].ToString(),dr["EndpointDescription"].ToString()))
                             {
-                                response = GetWebResponse(url, dataToSend);
-                                if (response.StatusCode == HttpStatusCode.OK)
+                                Int64 syncProcessingId = dr.GetInt64(0);
+                                //send it   
+                                bool ok = false;
+                                string url = string.Format("{0}/processmessage/{1}/{2}/{3}", dr["EndpointUrl"],
+                                    _sendToken,
+                                    dr["SystemName"], dr["EndpointDescription"]);
+                                byte[] dataToSend = Encoding.UTF8.GetBytes(dr["SyncPackage"].ToString());
+                                ServerResponse response = new ServerResponse();
+                                _log.Debug("Sending POST to " + url);
+                                //quick 3 attempts with 3s pause between each in case of connectivity issue
+                                for (var attempts = 1; attempts <= 3; attempts++)
                                 {
-                                    //update processed state to done
-                                    SetProcessedState(syncProcessingId, ProcessedState.Success);
-                                    _log.Debug("Sent successfully");
-                                    ok = true;
-                                    break;
+                                    response = GetWebResponse(url, dataToSend);
+                                    if (response.StatusCode == HttpStatusCode.OK)
+                                    {
+                                        //update processed state to done
+                                        SetProcessedState(syncProcessingId, ProcessedState.Success);
+                                        _log.Debug("Sent successfully");
+                                        ok = true;
+                                        break;
+                                    }
+                                    Thread.Sleep(3000);
                                 }
-                                Thread.Sleep(3000);
-                            }
-                            if (!ok)
-                            {
-                                _log.Debug("Failed to send after 3 attempts - " + response.Message);
-                                //it failed 3 times, we need to log and then park this system until we fix it
-                                SetProcessedState(syncProcessingId, ProcessedState.Failure, response.Message);
+                                if (!ok)
+                                {
+                                    _log.Debug("Failed to send after 3 attempts - " + response.Message);
+                                    //it failed 3 times, we need to log and then park this system until we fix it
+                                    SetProcessedState(syncProcessingId, ProcessedState.Failure, response.Message);
+                                }
                             }
                         }
                         else
@@ -117,6 +143,25 @@ namespace SQLDataSyncSender
             catch (Exception ex)
             {
                 return new ServerResponse {StatusCode = HttpStatusCode.InternalServerError, Message = ex.Message};
+            }
+
+        }
+
+        private int GetWebResponse(string url)
+        {
+            try
+            {
+                var webRequest = (HttpWebRequest)WebRequest.Create(url);
+                webRequest.Method = "GET";
+            
+                using (var resp = (HttpWebResponse)webRequest.GetResponse())
+                {
+                    return (int)resp.StatusCode;
+                }
+            }
+            catch (Exception ex)
+            {
+                return (int)HttpStatusCode.InternalServerError;
             }
 
         }

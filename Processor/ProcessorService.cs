@@ -76,6 +76,7 @@ namespace SQLDataSyncProcessor
                                 {
                                     SetProcessedState(syncProcessingId, ProcessedState.Success);
                                     ok = true;
+                                    _log.Debug("SQL executed successfully");
                                     break;
                                 }
                                 Thread.Sleep(3000);
