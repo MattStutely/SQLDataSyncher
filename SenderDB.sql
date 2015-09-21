@@ -171,3 +171,27 @@ ALTER TABLE [SyncSystemEndpoints] CHECK CONSTRAINT [FK_SyncSystemEndpoints_SyncS
 GO
 
 
+--RUN FROM HERE FOR CHANGES TO SYSTEMS INSTALLED BEFORE 23/4/15
+IF OBJECT_ID('usp_ResetEndpointErrors', 'P') IS NOT NULL
+DROP PROC usp_ResetEndpointErrors
+GO
+
+IF OBJECT_ID('usp_ResetAllErrors', 'P') IS NOT NULL
+DROP PROC usp_ResetAllErrors
+GO
+
+CREATE PROCEDURE [dbo].[usp_ResetEndpointErrors]  @Endpoint INT, @ClearErrors BIT AS
+IF @ClearErrors = 1
+	UPDATE SyncProcessing SET ProcessedState = 0 WHERE ProcessedState = 3 AND SyncSystemEndpointId = @EndPoint
+ELSE
+	UPDATE SyncProcessing SET ProcessedState = 4 WHERE ProcessedState = 3 AND SyncSystemEndpointId = @EndPoint
+
+UPDATE SyncSystemEndpoints SET IsActive = 1 WHERE SyncSystemEndpointId = @EndPoint
+GO
+
+CREATE PROCEDURE [dbo].[usp_ResetAllErrors] AS
+
+UPDATE SyncProcessing SET ProcessedState = 0 WHERE ProcessedState = 3
+UPDATE SyncSystemEndpoints SET IsActive = 1
+
+GO

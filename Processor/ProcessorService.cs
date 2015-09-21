@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using System.Net;
+using System.Net.Mail;
 using System.Runtime.Remoting.Services;
 using System.Threading;
 using log4net;
+using SendGrid;
 
 namespace SQLDataSyncProcessor
 {
@@ -22,10 +25,22 @@ namespace SQLDataSyncProcessor
         private Dictionary<string,bool> _identityInsertCache = new Dictionary<string, bool>();
         private readonly ILog _log = LogManager.GetLogger(typeof(ProcessorService));
 
+        private void ResetErrors()
+        {
+            //forces anything set to failure status to be reset and retried
+            //if the receiver was down, this saves having to manually intervene to sort it out and reset
+            if (Convert.ToBoolean(ConfigurationSettings.AppSettings["alwaysreseterrors"]))
+            {
+                _log.Debug("Resetting any endpoints + messages in error");
+                DataAccess.ExecuteSqlAgainstReceiverDb("usp_ResetAllErrors", CommandType.StoredProcedure);
+            }
+        }
+
         public void ProcessQueue()
         {
             try
             {
+                ResetErrors();
                 int batchSize = Convert.ToInt32(ConfigurationSettings.AppSettings["batchsize"]);
                 _log.Debug("Starting processing - batch size: " + batchSize);
                 //read n items off queue
@@ -84,8 +99,9 @@ namespace SQLDataSyncProcessor
                             if (!ok)
                             {
                                 //it failed 3 times, we need to log and then park this system until we fix it
-                                _log.Debug("Failed to process after 3 attempts - " + DataAccess.LastErrorMessage);
+                                _log.Error("Failed to process after 3 attempts - " + DataAccess.LastErrorMessage);
                                 SetProcessedState(syncProcessingId, ProcessedState.Failure, DataAccess.LastErrorMessage);
+                                SendFailureEmail(tableName,DataAccess.LastErrorMessage);
                             }
 
                         }
@@ -101,6 +117,7 @@ namespace SQLDataSyncProcessor
             catch (Exception ex)
             {
                 _log.Error(ex.Message, ex);
+                SendFailureEmail("Unknown", ex.Message);
             }
             finally
             {
@@ -134,6 +151,35 @@ namespace SQLDataSyncProcessor
                 parms.Add(new SqlParameter { ParameterName = "@Info", Value = info });
             }
             DataAccess.ExecuteSqlAgainstReceiverDb("usp_SetProcessedState", CommandType.StoredProcedure, parms);
+        }
+
+        private void SendFailureEmail(string tableName, string errorMessage)
+        {
+            try
+            {
+                SendGridMessage myMessage = new SendGridMessage();
+                var sendFailsTo = ConfigurationManager.AppSettings["sendgridfailureto"];
+                foreach (var sendFailTo in sendFailsTo.Split(Convert.ToChar(";")))
+                {
+                    if (!string.IsNullOrEmpty(sendFailTo))
+                    {
+                        myMessage.AddTo(sendFailTo);
+                    }
+                }
+                myMessage.From = new MailAddress(ConfigurationManager.AppSettings["sendgridfrom"], "SQL Data Sync Processor");
+                myMessage.Subject = "Failed to execute SQL against target DB";
+
+                myMessage.Text = string.Format("Attempted to save to table {0}, received error {1}", tableName, errorMessage);
+
+                var credentials = new NetworkCredential(ConfigurationManager.AppSettings["sendgriduser"], ConfigurationManager.AppSettings["sendgridpassword"]);
+                var transportWeb = new Web(credentials);
+                transportWeb.DeliverAsync(myMessage);
+            }
+            catch (Exception ex)
+            {
+                _log.Error("Could not send failure email", ex);
+            }
+
         }
 
 

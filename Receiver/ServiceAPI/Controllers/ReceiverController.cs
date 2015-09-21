@@ -29,24 +29,8 @@ namespace ServiceAPI
             return statsService.GetStats();
         }
 
-        [HttpGet]
-        [Route("endpointexists/{token}/{system}/{endpoint}")]
-        public HttpResponseMessage EndpointExistsCheck(string token, string system, string endpoint)
-        {
-            //if this can be hit without error, then its alive
-            _log.Debug(string.Format("Request to check endpoint alive at {0}/{1}",system,endpoint));
-            if (token != _acceptToken)
-            {
-                _log.Error("Token sent (" + token + ") is not valid");
-                throw new UnauthorizedAccessException();
-            }
-            var receiverService = new ReceiverService();
-            var statusCode = receiverService.EndpointExistsCheck(system, endpoint);
-            _log.Debug("Returning status code " + (int)statusCode);
-            return Request.CreateResponse(statusCode);
-        }
 
-    [HttpPost]
+        [HttpPost]
         [Route("processmessage/{token}/{system}/{endpoint}")]
         public HttpResponseMessage ProcessMessage(HttpRequestMessage message, string token, string system, string endpoint)
         {
