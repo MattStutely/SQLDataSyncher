@@ -157,7 +157,10 @@ namespace SQLDataSyncProcessor
         {
             try
             {
-                SendGridMessage myMessage = new SendGridMessage();
+                var myMessage = new SendGridMessage
+                {
+                    From = new MailAddress(ConfigurationManager.AppSettings["sendgridfrom"], "SQL Data Sync Service")
+                };
                 var sendFailsTo = ConfigurationManager.AppSettings["sendgridfailureto"];
                 foreach (var sendFailTo in sendFailsTo.Split(Convert.ToChar(";")))
                 {
@@ -166,14 +169,13 @@ namespace SQLDataSyncProcessor
                         myMessage.AddTo(sendFailTo);
                     }
                 }
-                myMessage.From = new MailAddress(ConfigurationManager.AppSettings["sendgridfrom"], "SQL Data Sync Processor");
                 myMessage.Subject = "Failed to execute SQL against target DB";
 
                 myMessage.Text = string.Format("Attempted to save to table {0}, received error {1}", tableName, errorMessage);
 
                 var credentials = new NetworkCredential(ConfigurationManager.AppSettings["sendgriduser"], ConfigurationManager.AppSettings["sendgridpassword"]);
                 var transportWeb = new Web(credentials);
-                transportWeb.DeliverAsync(myMessage);
+                transportWeb.DeliverAsync(myMessage).Wait(60000);
             }
             catch (Exception ex)
             {
