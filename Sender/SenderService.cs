@@ -160,7 +160,10 @@ namespace SQLDataSyncSender
         {
             try
             {
-                SendGridMessage myMessage = new SendGridMessage();
+                var myMessage = new SendGridMessage
+                {
+                    From = new MailAddress(ConfigurationManager.AppSettings["sendgridfrom"], "SQL Data Sync Service")
+                };
                 var sendFailsTo = ConfigurationManager.AppSettings["sendgridfailureto"];
                 foreach (var sendFailTo in sendFailsTo.Split(Convert.ToChar(";")))
                 {
@@ -169,14 +172,15 @@ namespace SQLDataSyncSender
                         myMessage.AddTo(sendFailTo);        
                     }
                 }
-                myMessage.From = new MailAddress(ConfigurationManager.AppSettings["sendgridfrom"], "SQL Data Sync Service");
+
                 myMessage.Subject = "Failed to send message to receiver";
 
                 myMessage.Text = string.Format("Attempted to send message to url {0}, received error {1}",url,errorMessage);
+                myMessage.Html = "<p>" + myMessage.Text + "</p>";
 
                 var credentials = new NetworkCredential(ConfigurationManager.AppSettings["sendgriduser"], ConfigurationManager.AppSettings["sendgridpassword"]);
                 var transportWeb = new Web(credentials);
-                transportWeb.DeliverAsync(myMessage);
+                transportWeb.DeliverAsync(myMessage).Wait(60000);
             }
             catch (Exception ex)
             {
