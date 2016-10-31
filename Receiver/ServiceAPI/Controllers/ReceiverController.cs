@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Linq;
 using System.Net.Http;
 using System.Web.Http;
 using log4net;
@@ -11,7 +12,7 @@ namespace ServiceAPI
     public class ReceiverController : ApiController
     {
         private readonly ILog _log = LogManager.GetLogger(typeof(ReceiverController));
-        private static string _acceptToken = ConfigurationSettings.AppSettings["accepttoken"];
+        private static List<string> _acceptTokens = ConfigurationSettings.AppSettings["accepttoken"].Split(',').ToList();
         private static string _statsToken = ConfigurationSettings.AppSettings["statstoken"];
 
         [HttpGet]
@@ -36,7 +37,7 @@ namespace ServiceAPI
         {
             _log.Debug(string.Format("Message received for processing {0}/{1}",system,endpoint));
             //validate token
-            if (token != _acceptToken)
+            if (!_acceptTokens.Contains(token))
             {
                 _log.Error("Token sent (" + token + ") is not valid");
                 throw new UnauthorizedAccessException();
