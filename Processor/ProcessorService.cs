@@ -58,9 +58,9 @@ namespace SQLDataSyncProcessor
                             string conStr = dr["DbConStr"].ToString();
                             _log.Debug("Processing syncitem #" + syncProcessingId + " to table " + tableName);
                             //check if table name needs identity insert or not
-                            if (!_identityInsertCache.ContainsKey(tableName))
+                            if (!_identityInsertCache.ContainsKey(tableName + "_" + conStr))
                             {
-                                _identityInsertCache.Add(tableName, CheckIfTableNeedsIdentityInsert(conStr, tableName));
+                                _identityInsertCache.Add(tableName + "_" + conStr, CheckIfTableNeedsIdentityInsert(conStr, tableName));
                             }
                             bool identityInsert = _identityInsertCache[tableName];
                             bool isUpdate = !sql.StartsWith("DELETE");
