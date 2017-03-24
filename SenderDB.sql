@@ -195,3 +195,39 @@ UPDATE SyncProcessing SET ProcessedState = 0 WHERE ProcessedState = 3
 UPDATE SyncSystemEndpoints SET IsActive = 1
 
 GO
+
+--RUN FROM HERE FOR CHANGES TO SYSTEMS INSTALLED BEFORE 24/3/2017
+ALTER TABLE SyncSystemEndpoints ADD ReceiverToken VARCHAR(255) NOT NULL DEFAULT '??'
+GO
+
+ALTER PROCEDURE [usp_GetNextDataItem] AS
+
+DECLARE @SyncProcessingId BIGINT
+
+SELECT TOP 1 @SyncProcessingId = SyncProcessingId 
+FROM SyncMaster 
+INNER JOIN SyncProcessing ON SyncMaster.SyncId = SyncProcessing.SyncId
+INNER JOIN SyncSystemEndpoints ON SyncSystemEndpoints.SyncSystemEndpointId = SyncProcessing.SyncSystemEndpointId
+WHERE ProcessedState = 0 AND IsActive = 1
+ORDER BY SyncDatestamp, ProcessOrder
+
+--lock it
+exec usp_SetProcessedState @SyncProcessingId, 1
+
+--return transfer package
+SELECT
+SyncProcessingId,
+SystemName,
+Description AS EndpointDescription,
+SyncPackage,
+EndpointUrl,
+ReceiverToken
+FROM 
+SyncMaster
+INNER JOIN SyncProcessing ON SyncMaster.SyncId = SyncProcessing.SyncId
+INNER JOIN SyncSystems ON SyncMaster.SystemId = SyncSystems.SystemId
+INNER JOIN SyncSystemEndpoints ON SyncSystemEndpoints.SyncSystemEndpointId = SyncProcessing.SyncSystemEndpointId
+WHERE 
+SyncProcessingId = @SyncProcessingId
+AND SyncSystemEndpoints.IsActive = 1
+GO

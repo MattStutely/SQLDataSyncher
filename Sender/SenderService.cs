@@ -27,7 +27,6 @@ namespace SQLDataSyncSender
 
     public class SenderService
     {
-        private string _sendToken = ConfigurationSettings.AppSettings["sendtoken"];
         private readonly ILog _log = LogManager.GetLogger(typeof(SenderService));
         private enum ProcessedState
         {
@@ -68,7 +67,7 @@ namespace SQLDataSyncSender
                             //send it   
                             bool ok = false;
                             url = string.Format("{0}/processmessage/{1}/{2}/{3}", dr["EndpointUrl"],
-                                _sendToken,
+                                dr["ReceiverToken"],
                                 dr["SystemName"], dr["EndpointDescription"]);
                             byte[] dataToSend = Encoding.UTF8.GetBytes(dr["SyncPackage"].ToString());
                             ServerResponse response = new ServerResponse();
@@ -89,7 +88,7 @@ namespace SQLDataSyncSender
                             }
                             if (!ok)
                             {
-                                _log.Debug("Failed to send after 3 attempts - " + response.Message);
+                                _log.Error("Failed to send after 3 attempts - " + response.Message);
                                 //it failed 3 times, we need to log and then park this system until we fix it
                                 SetProcessedState(syncProcessingId, ProcessedState.Failure, response.Message);
                                 SendFailureEmail(url,response.Message);
