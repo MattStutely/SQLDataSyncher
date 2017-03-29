@@ -27,6 +27,7 @@ INSERT INTO @TABLELIST(TABLE_NAME)
 	SELECT TABLE_NAME FROM INFORMATION_SCHEMA.Tables
 	WHERE TABLE_TYPE= 'BASE TABLE'
 	AND TABLE_NAME NOT IN ('sysdiagrams')
+	--AND TABLE_NAME NOT IN(insert list of tables not to sync here as comma delimted list of strings)
 
 SELECT @MAXROWS = COUNT(*) FROM @TABLELIST
 
@@ -172,6 +173,10 @@ END
 GO
 
 
+
+IF OBJECT_ID('usp_SyncTool_CreateSyncItem', 'P') IS NOT NULL DROP PROCEDURE usp_SyncTool_CreateSyncItem
+GO
+
 --**SYNC STORED PROCEDURE**
 --this proc needed in each db that you want to sync, trigger will call it to write to sync db
 CREATE PROCEDURE [dbo].[usp_SyncTool_CreateSyncItem](@TableName VARCHAR(255), @IgnoreCols VARCHAR(MAX) = NULL, @ChangeXML XML = NULL, @UpdateType CHAR(1), @UpdatedWhen DATETIME) AS
@@ -198,6 +203,27 @@ DECLARE @XValue XML
 
 DECLARE @Quote CHAR(1)
 SELECT @Quote = ''''
+
+--handle ignore list and put into a table
+DECLARE @StartIndex INT, @EndIndex INT
+DECLARE @Character CHAR(1)
+SET @Character = ','
+ 
+SET @StartIndex = 1
+IF SUBSTRING(@IgnoreCols, LEN(@IgnoreCols) - 1, LEN(@IgnoreCols)) <> @Character
+BEGIN
+	SET @IgnoreCols = @IgnoreCols + @Character
+END
+ 
+WHILE CHARINDEX(@Character, @IgnoreCols) > 0
+BEGIN
+	SET @EndIndex = CHARINDEX(@Character, @IgnoreCols)
+           
+		   INSERT INTO @IgnoreColList
+				SELECT LTRIM(RTRIM(SUBSTRING(@IgnoreCols, @StartIndex, @EndIndex - 1)))
+			
+	SET @IgnoreCols = SUBSTRING(@IgnoreCols, @EndIndex + 1, LEN(@IgnoreCols))
+END
 
 INSERT INTO @PKColList(COLUMN_NAME)
 	SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu

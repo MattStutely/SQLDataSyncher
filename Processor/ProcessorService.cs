@@ -38,6 +38,7 @@ namespace SQLDataSyncProcessor
 
         public void ProcessQueue()
         {
+            Int64 syncProcessingId = 0;
             try
             {
                 ResetErrors();
@@ -52,7 +53,7 @@ namespace SQLDataSyncProcessor
                     {
                         if (dr.Read())
                         {
-                            Int64 syncProcessingId = dr.GetInt64(0);
+                            syncProcessingId = dr.GetInt64(0);
                             string sql = dr["SqlStatement"].ToString();
                             string tableName = dr["TableName"].ToString();
                             string conStr = dr["DbConStr"].ToString();
@@ -62,7 +63,7 @@ namespace SQLDataSyncProcessor
                             {
                                 _identityInsertCache.Add(tableName + "_" + conStr, CheckIfTableNeedsIdentityInsert(conStr, tableName));
                             }
-                            bool identityInsert = _identityInsertCache[tableName];
+                            bool identityInsert = _identityInsertCache[tableName + "_" + conStr];
                             bool isUpdate = !sql.StartsWith("DELETE");
                             if (isUpdate)
                             {
@@ -92,6 +93,7 @@ namespace SQLDataSyncProcessor
                                     SetProcessedState(syncProcessingId, ProcessedState.Success);
                                     ok = true;
                                     _log.Debug("SQL executed successfully");
+                                    syncProcessingId = 0;
                                     break;
                                 }
                                 Thread.Sleep(3000);
@@ -117,6 +119,11 @@ namespace SQLDataSyncProcessor
             catch (Exception ex)
             {
                 _log.Error(ex.Message, ex);
+                if(syncProcessingId!=0)
+                {
+                    SetProcessedState(syncProcessingId, ProcessedState.Failure, DataAccess.LastErrorMessage);
+                }
+                
                 SendFailureEmail("Unknown", ex.Message);
             }
             finally

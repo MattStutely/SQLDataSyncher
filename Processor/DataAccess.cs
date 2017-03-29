@@ -106,6 +106,7 @@ namespace SQLDataSyncProcessor
                     }
                     ExecuteSqlCommand(cm, commandText, commandType, parms, timeOut);
                 }
+                GC.Collect();
                 return true;
             }
             catch (Exception ex)
