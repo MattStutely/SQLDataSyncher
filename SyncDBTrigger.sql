@@ -56,6 +56,10 @@ INNER JOIN INFORMATION_SCHEMA.COLUMNS col ON cu.COLUMN_NAME = col.COLUMN_NAME AN
 WHERE EXISTS ( SELECT tc.* FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc WHERE tc.TABLE_NAME = @TABLE_NAME AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.CONSTRAINT_NAME = cu.CONSTRAINT_NAME )
 
 SELECT @PKMIN=MIN(ROWID), @PKMAXROWS = MAX(ROWID) FROM @PKColList
+
+--NB DON'T FORGET THIS TWEAK FOR BINARY DATA
+--when binary need in the trigger to send columns individually, e..g.
+--(SELECT DocumentsForDayId, DayId, DocumentTypeId, CONVERT(NVARCHAR(MAX),DocumentData,1) AS DocumentData, Filesize, Filename FROM inserted AS DataChange WHERE DocumentsForDayId = @DocumentsForDayIdVal FOR XML AUTO,ELEMENTS,BINARY BASE64)
 	
 EXEC('IF OBJECT_ID (''' + @TABLE_NAME+ '_SyncData'', ''TR'') IS NOT NULL DROP TRIGGER ' + @TABLE_NAME+ '_SyncData')
 SET @SQL =
@@ -299,7 +303,7 @@ BEGIN
 			SELECT @InsertValues = @InsertValues + 'NULL'
 		END
 		ELSE
-		BEGIN
+		BEGIN			
 			IF @ColDt IN ('binary(MAX)', 'varbinary(MAX)')
 				--binary need to be treated differently, converted to hex from base64
 				SET @VALUE  = sys.fn_varbintohexstr(cast(N'' as xml).value('xs:base64Binary(sql:variable("@VALUE"))', 'varbinary(MAX)'))
@@ -307,6 +311,7 @@ BEGIN
 				--normal field
 				IF @ColDt NOT IN ('int','bigint','float','bit')
 					SELECT @VALUE = @Quote + replace(@VALUE, @Quote, @Quote + @Quote) + @Quote
+
 
             IF @ColName NOT IN (SELECT COLUMN_NAME FROM @PKColList)--ignore pk col for update but use for the where clause
 				SELECT @UpdateSQL = @UpdateSQL + @VALUE
@@ -343,4 +348,3 @@ ELSE
 EXECUTE [REPLACEME_SENDERDATABASE].dbo.[usp_AddSyncItem] --change to specify db location of our sync db
    @System, @TableName, @ExecSQL, @UpdatedWhen
 GO
-
