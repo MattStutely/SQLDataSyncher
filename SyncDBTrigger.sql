@@ -305,8 +305,14 @@ BEGIN
 		ELSE
 		BEGIN			
 			IF @ColDt IN ('binary(MAX)', 'varbinary(MAX)')
+			BEGIN
 				--binary need to be treated differently, converted to hex from base64
-				SET @VALUE  = sys.fn_varbintohexstr(cast(N'' as xml).value('xs:base64Binary(sql:variable("@VALUE"))', 'varbinary(MAX)'))
+				--back to binary data for processing
+				DECLARE @Bin VARBINARY(MAX)
+				SET @Bin = CAST(N'' AS XML).value('xs:base64Binary(sql:variable("@VALUE"))', 'VARBINARY(MAX)')
+				--convert to Hex for transport
+				SELECT @VALUE = N'0x' + cast(N'' as xml).value('xs:hexBinary(sql:variable("@Bin"))', 'VARCHAR(MAX)')
+			END
 			ELSE
 				--normal field
 				IF @ColDt NOT IN ('int','bigint','float','bit')
